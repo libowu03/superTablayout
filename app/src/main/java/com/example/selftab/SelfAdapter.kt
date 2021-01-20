@@ -20,7 +20,7 @@ class SelfAdapter : RecyclerView.Adapter<SelfAdapter.Sa>() {
     }
 
     override fun getItemCount(): Int {
-        return 4
+        return 5
     }
 
     override fun onBindViewHolder(holder: Sa, position: Int) {

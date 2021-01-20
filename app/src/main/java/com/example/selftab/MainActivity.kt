@@ -19,6 +19,6 @@ class MainActivity : AppCompatActivity() {
 
         }
         findViewById<SelfTabView>(R.id.vTab).attachViewPager2(findViewById<ViewPager2>(R.id.vVp2))
-        findViewById<SelfTabView>(R.id.vTab).addTab(arrayListOf("你","你好","你好呀","哈哈","哈哈","哈哈"))
+        findViewById<SelfTabView>(R.id.vTab).addTab(arrayListOf("你","你好","发动机","发动机","发动机"))
     }
 }

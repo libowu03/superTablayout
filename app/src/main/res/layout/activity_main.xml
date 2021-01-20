@@ -13,6 +13,7 @@
         app:suTabIndicatorWidth="40dp"
         app:suTabIndicatorBg="@drawable/ic_shape_tab"
         app:suTabIndicatorHeight="4dp"
+        app:suTabSelfLayout="@layout/self_tab_text"
         app:suTabShowModel="scroll"
         app:suTabTextSize="16dp"
         android:id="@+id/vTab"/>
