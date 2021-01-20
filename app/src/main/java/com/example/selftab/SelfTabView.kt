@@ -8,7 +8,6 @@ import android.graphics.Typeface
 import android.graphics.drawable.Drawable
 import android.text.TextUtils
 import android.util.AttributeSet
-import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -16,6 +15,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.*
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.viewpager.widget.ViewPager
 import androidx.viewpager2.widget.ViewPager2
 
 /**
@@ -32,10 +32,10 @@ class SelfTabView : FrameLayout {
     private val mIndicatorPaint = Paint()
 
     //指示器宽度
-    private var mIndicatorWidth = 10f
+    var mIndicatorWidth = 10f
 
     //指示器高度
-    private var mIndicatorHeight = 5f
+    var mIndicatorHeight = 5f
 
     //viewpager2的宽度
     private var mViewpagerWidth = 0
@@ -47,28 +47,28 @@ class SelfTabView : FrameLayout {
     private var mLlp: ConstraintLayout.LayoutParams? = null
 
     //指示器背景
-    private var mIndicatorBg: Drawable? = null
+    var mIndicatorBg: Drawable? = null
 
     //选中tab字体颜色
-    private var mTabSelectedTextColor: Int = Color.BLACK
+    var mTabSelectedTextColor: Int = Color.BLACK
 
     //tab字体颜色
-    private var mTabTextColor: Int = Color.parseColor("#cccccc")
+    var mTabTextColor: Int = Color.parseColor("#cccccc")
 
     //tab字体大小
-    private var mTabTextSize: Float = 0f
+    var mTabTextSize: Float = 0f
 
     //自定义tab布局
-    private var mTabCustomLayout: Int = -1
+    var mTabCustomLayout: Int = -1
 
     //选中tab字体大小
-    private var mTabSelectedTextSize: Float = 1.2f
+    var mTabSelectedTextSize: Float = 1.2f
 
     //默认字体粗细样式
     private var mDefaultFontFaceType: Typeface? = null
 
     //是否允许选中tab文字加粗
-    private var mTabEnableSelectedTextBold: Boolean = true
+    var mTabEnableSelectedTextBold: Boolean = true
 
     //tab的显示模式，包括滚动和平均分配两种
     private var mTabShowModel: Int = 0
@@ -82,9 +82,28 @@ class SelfTabView : FrameLayout {
     //存放tab父盒子的宽度
     private var mTabParentBoxWidth = 0f
 
-    private var mTabDefaultScrollPadding: Float = 0f
+    //滚动模式下，如果用户设置的宽度为match或wrap，则会将tab宽度设置为tab标题最大宽度+该padding
+    var mTabDefaultScrollPadding: Float = 0f
 
+    //指示器距离底部的距离
+    var mTabIndicatorMarginBottom: Float = 0f
+
+    //用户设置的viewpager2
     private var mViewpager2: ViewPager2? = null
+
+    //用户设置的viewpager
+    private var mViewpager: ViewPager? = null
+
+    //用户设置的viewpager2监听器
+    private var mViewpager2Callback: ViewPager2.OnPageChangeCallback? = null
+
+    //用户设置的viewpager监听器
+    private var mViewpagerCallback: ViewPager.OnPageChangeListener? = null
+
+    //tab监听器
+    private var mSuperTabCallback: SuperTabCallback? = null
+
+    var mTabEnablePageSmoothScroll:Boolean = true
 
     private var mCustomTabConfigCallback: (customView: View, title: String, position: Int) -> Unit =
         { customView, title, position -> }
@@ -141,6 +160,9 @@ class SelfTabView : FrameLayout {
         mTabEnableSelectedTextBold =
             parameters.getBoolean(R.styleable.SelfTabView_suTabEnableSelectedTextBold, true)
         mTabShowModel = parameters.getInt(R.styleable.SelfTabView_suTabShowModel, 0)
+        mTabIndicatorMarginBottom =
+            parameters.getDimension(R.styleable.SelfTabView_suTabIndicatorMarginBottom, 0f)
+        mTabEnablePageSmoothScroll = parameters.getBoolean(R.styleable.SelfTabView_suTabEnablePageSmoothScroll,true)
         parameters.recycle()
     }
 
@@ -194,10 +216,11 @@ class SelfTabView : FrameLayout {
         if (indicatorStartX + offset > (indicatorNextEndX - mIndicatorWidth)) {
             setTabTextColor(mDefaultTabIndex + 1)
         }
-        //Log.e("日志","offset为：${offset},${mOffset}")
         findViewById<ImageView>(R.id.vImgIndicator).translationX =
             if (indicatorStartX + offset > (indicatorNextEndX - mIndicatorWidth)) indicatorNextStartX else indicatorStartX + offset
-        findViewById<ImageView>(R.id.vImgIndicator).translationY = height - mIndicatorHeight
+        findViewById<ImageView>(R.id.vImgIndicator).translationY =
+            height - mIndicatorHeight - mTabIndicatorMarginBottom
+        mSuperTabCallback?.onIndicatorMove(offset.toFloat())
     }
 
     /**
@@ -222,6 +245,8 @@ class SelfTabView : FrameLayout {
             val selected = findViewById<LinearLayout>(R.id.vLlTabBox).getChildAt(position)
             val unselected =
                 findViewById<LinearLayout>(R.id.vLlTabBox).getChildAt(mOldSelectPosition)
+            mSuperTabCallback?.onSelected(selected)
+            mSuperTabCallback?.onUnSelected(unselected)
             if (position != mOldSelectPosition) {
                 if (selected is TextView && unselected is TextView) {
                     selected.setTextColor(mTabSelectedTextColor)
@@ -245,9 +270,47 @@ class SelfTabView : FrameLayout {
         }
     }
 
+    /**
+     * 绑定viewpager
+     */
+    fun attachViewpager(viewpager: ViewPager) {
+        findViewById<LinearLayout>(R.id.vLlTabBox).removeAllViews()
+        viewpager.addOnPageChangeListener(object : ViewPager.OnPageChangeListener {
+            override fun onPageScrollStateChanged(state: Int) {
+                mViewpagerCallback?.onPageScrollStateChanged(state)
+            }
+
+            override fun onPageScrolled(
+                position: Int,
+                positionOffset: Float,
+                positionOffsetPixels: Int
+            ) {
+                mViewpagerCallback?.onPageScrolled(position, positionOffset, positionOffsetPixels)
+                mDefaultTabIndex = position
+                mViewpagerWidth = viewpager.width
+                mOffset = positionOffsetPixels
+                invalidate()
+            }
+
+            override fun onPageSelected(position: Int) {
+                mViewpagerCallback?.onPageSelected(position)
+                mDefaultTabIndex = position
+                setTabTextColor(position)
+                mOldSelectPosition = position
+                if (mTabShowModel == 1) {
+                    val scrollBox = findViewById<HorizontalScrollView>(R.id.vHScrollTabBox)
+                    scrollBox.scrollTo((position * mTabScrollWidth).toInt(), 0)
+                    //设置tab父盒子宽度
+                    mTabParentBoxWidth = findViewById<LinearLayout>(R.id.vLlTabBox).width.toFloat()
+                }
+            }
+
+        })
+    }
 
     /**
      * 绑定viewpager2
+     * 这里需要注意一下，如果使用该tab，就不可以自己再注册一个viewpager2的监听器了，如果再注册一次，该tab中的功能将会受到影响
      */
     fun attachViewPager2(viewPager2: ViewPager2) {
         mViewpager2 = viewPager2
@@ -260,6 +323,7 @@ class SelfTabView : FrameLayout {
                 positionOffset: Float,
                 positionOffsetPixels: Int
             ) {
+                mViewpager2Callback?.onPageScrolled(position, positionOffset, positionOffsetPixels)
                 mDefaultTabIndex = position
                 mViewpagerWidth = viewPager2.width
                 mOffset = positionOffsetPixels
@@ -268,6 +332,7 @@ class SelfTabView : FrameLayout {
 
             override fun onPageSelected(position: Int) {
                 super.onPageSelected(position)
+                mViewpager2Callback?.onPageSelected(position)
                 mDefaultTabIndex = position
                 setTabTextColor(position)
                 mOldSelectPosition = position
@@ -278,7 +343,28 @@ class SelfTabView : FrameLayout {
                     mTabParentBoxWidth = findViewById<LinearLayout>(R.id.vLlTabBox).width.toFloat()
                 }
             }
+
+            override fun onPageScrollStateChanged(state: Int) {
+                super.onPageScrollStateChanged(state)
+                mViewpager2Callback?.onPageScrollStateChanged(state)
+            }
         })
+    }
+
+    /**
+     * 设置用户需要的viewpager2监听器
+     * 如果使用了改控件，直接在控件以外再次注册监听器，该控件功能将会受到影响
+     */
+    fun registerViewpager2Callback(callback: ViewPager2.OnPageChangeCallback) {
+        this.mViewpager2Callback = callback
+    }
+
+    /**
+     * 设置用户需要的viewpager监听器
+     * 如果使用了改控件，直接在控件以外再次注册监听器，该控件功能将会受到影响
+     */
+    fun registerViewpagerCallabck(callback: ViewPager.OnPageChangeListener) {
+        this.mViewpagerCallback = callback
     }
 
     /**
@@ -363,6 +449,7 @@ class SelfTabView : FrameLayout {
             val index = findViewById<LinearLayout>(R.id.vLlTabBox).indexOfChild(it)
             setTabTextColor(index)
             mViewpager2?.setCurrentItem(index, true)
+            mViewpager?.setCurrentItem(index,true)
         }
         findViewById<LinearLayout>(R.id.vLlTabBox).addView(view)
     }
@@ -401,11 +488,11 @@ class SelfTabView : FrameLayout {
             //如果自定义布局设置了宽度，且宽度不是自适应或铺满，则用用户的宽度，否则使用字符最大宽度
             if (view.layoutParams.width > 0) {
                 //这里限制一下tab的最大宽度，大于最大宽度直接取最大宽度
-                if (view.layoutParams.width.toFloat() > mTabScrollMaxWidth){
+                if (view.layoutParams.width.toFloat() > mTabScrollMaxWidth) {
                     val llp = view.layoutParams
                     llp.width = mTabScrollMaxWidth.toInt()
                     view.layoutParams = llp
-                }else{
+                } else {
                     mTabScrollWidth = view.layoutParams.width.toFloat()
                 }
             } else {
@@ -420,6 +507,7 @@ class SelfTabView : FrameLayout {
             val index = findViewById<LinearLayout>(R.id.vLlTabBox).indexOfChild(it)
             setTabTextColor(index)
             mViewpager2?.setCurrentItem(index, true)
+            mViewpager?.setCurrentItem(index,true)
         }
         //添加自定义布局
         findViewById<LinearLayout>(R.id.vLlTabBox).addView(view)
@@ -433,6 +521,13 @@ class SelfTabView : FrameLayout {
     }
 
     /**
+     * 设置tab的监听器
+     */
+    fun setTabCallback(callback: SuperTabCallback) {
+        this.mSuperTabCallback = callback
+    }
+
+    /**
      * 根据手机的分辨率从 dp 的单位 转成为 px(像素)
      *
      * @param context
@@ -442,6 +537,14 @@ class SelfTabView : FrameLayout {
     private fun dipTopx(dpValue: Float): Int {
         val scale = context.resources.displayMetrics.density
         return (dpValue * scale + 0.5f).toInt()
+    }
+
+    /**
+     * 选中某个tab
+     */
+    fun selectTab(position:Int){
+        mViewpager?.setCurrentItem(position,mTabEnablePageSmoothScroll)
+        mViewpager2?.setCurrentItem(position,mTabEnablePageSmoothScroll)
     }
 
 }

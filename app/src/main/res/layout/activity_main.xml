@@ -9,12 +9,10 @@
     android:orientation="vertical">
     <com.example.selftab.SelfTabView
         android:layout_width="match_parent"
-        android:layout_height="45dp"
-        app:suTabIndicatorWidth="40dp"
+        android:layout_height="wrap_content"
+        app:suTabIndicatorWidth="5dp"
         app:suTabIndicatorBg="@drawable/ic_shape_tab"
-        app:suTabIndicatorHeight="4dp"
-        app:suTabSelfLayout="@layout/self_tab_text"
-        app:suTabShowModel="scroll"
+        app:suTabIndicatorHeight="5dp"
         app:suTabTextSize="16dp"
         android:id="@+id/vTab"/>
     <androidx.viewpager2.widget.ViewPager2

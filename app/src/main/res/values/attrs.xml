@@ -15,10 +15,14 @@
         <attr name="suTabTextSize" format="dimension"/>
         <!--选中字体缩放比例-->
         <attr name="suTabSelectedTextSize" format="float"/>
+        <!--指示器距离底部的距离,默认距离底部距离为零-->
+        <attr name="suTabIndicatorMarginBottom" format="dimension"/>
         <!--自定义layout布局-->
         <attr name="suTabSelfLayout" format="reference"/>
         <!--是否允许选中项加粗-->
         <attr name="suTabEnableSelectedTextBold" format="boolean"/>
+        <!--点击tab时，page是带有动画的滚动形式还是越过动画，直接到达目标page-->
+        <attr name="suTabEnablePageSmoothScroll" format="boolean"/>
         <!--滚动模式-->
         <attr name="suTabShowModel" format="enum">
             <!--平均模式-->
