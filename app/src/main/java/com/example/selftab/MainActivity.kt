@@ -6,6 +6,7 @@ import com.google.android.material.snackbar.Snackbar
 import androidx.appcompat.app.AppCompatActivity
 import android.view.Menu
 import android.view.MenuItem
+import android.widget.TextView
 import androidx.viewpager2.widget.ViewPager2
 
 class MainActivity : AppCompatActivity() {
@@ -14,6 +15,10 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         findViewById<ViewPager2>(R.id.vVp2).adapter = SelfAdapter()
+        findViewById<SelfTabView>(R.id.vTab).setCustomTabContent { customView, title, position ->
+
+        }
         findViewById<SelfTabView>(R.id.vTab).attachViewPager2(findViewById<ViewPager2>(R.id.vVp2))
+        findViewById<SelfTabView>(R.id.vTab).addTab(arrayListOf("你","你好","你好呀","哈哈","哈哈","哈哈"))
     }
 }
