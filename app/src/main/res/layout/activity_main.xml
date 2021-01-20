@@ -13,7 +13,6 @@
         app:suTabIndicatorWidth="5dp"
         app:suTabIndicatorBg="@drawable/ic_shape_tab"
         app:suTabIndicatorHeight="5dp"
-        app:suTabTextSize="16dp"
         android:id="@+id/vTab"/>
     <androidx.viewpager2.widget.ViewPager2
         android:layout_width="match_parent"

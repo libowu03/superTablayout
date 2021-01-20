@@ -8,6 +8,7 @@ import android.graphics.Typeface
 import android.graphics.drawable.Drawable
 import android.text.TextUtils
 import android.util.AttributeSet
+import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -130,6 +131,7 @@ class SelfTabView : FrameLayout {
         }
     }
 
+
     /**
      * 获取xml参数
      */
@@ -151,7 +153,7 @@ class SelfTabView : FrameLayout {
         mTabTextColor =
             parameters.getColor(R.styleable.SelfTabView_suTabTextColor, Color.parseColor("#cccccc"))
         mTabTextSize =
-            parameters.getDimension(R.styleable.SelfTabView_suTabTextSize, dipTopx(16f).toFloat())
+            parameters.getDimension(R.styleable.SelfTabView_suTabTextSize, dipTopx(13f).toFloat())
         mTabSelectedTextSize = parameters.getFloat(
             R.styleable.SelfTabView_suTabSelectedTextSize,
             mTabTextSize + dipTopx(3f)
