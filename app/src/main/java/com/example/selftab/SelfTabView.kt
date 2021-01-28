@@ -13,6 +13,7 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
+import android.view.View.MeasureSpec.AT_MOST
 import android.view.ViewGroup
 import android.widget.*
 import androidx.constraintlayout.widget.ConstraintLayout
@@ -104,7 +105,18 @@ class SelfTabView : FrameLayout {
     //tab监听器
     private var mSuperTabCallback: SuperTabCallback? = null
 
+    //选中tab的背景
+    private var mSuperTabSelectedBg:Drawable?=null
+
+    //未选中tab的背景
+    private var mSuperTabUnselectedBg:Drawable?=null
+
+    private var mDefaultTabHeight:Int = 0
+
+    private var mTabTitleArray:MutableList<String> = mutableListOf()
+
     var mTabEnablePageSmoothScroll:Boolean = true
+
 
     private var mCustomTabConfigCallback: (customView: View, title: String, position: Int) -> Unit =
         { customView, title, position -> }
@@ -128,6 +140,10 @@ class SelfTabView : FrameLayout {
             LayoutInflater.from(context).inflate(R.layout.view_self_tab, this, true)
         } else {
             LayoutInflater.from(context).inflate(R.layout.view_self_scroll_tab, this, true)
+        }
+
+        if (mIndicatorWidth == 0f){
+            findViewById<ImageView>(R.id.vImgIndicator).visibility = View.GONE
         }
     }
 
@@ -154,7 +170,7 @@ class SelfTabView : FrameLayout {
             parameters.getColor(R.styleable.SelfTabView_suTabTextColor, Color.parseColor("#cccccc"))
         mTabTextSize =
             parameters.getDimension(R.styleable.SelfTabView_suTabTextSize, dipTopx(13f).toFloat())
-        mTabSelectedTextSize = parameters.getFloat(
+        mTabSelectedTextSize = parameters.getDimension(
             R.styleable.SelfTabView_suTabSelectedTextSize,
             mTabTextSize + dipTopx(3f)
         )
@@ -165,10 +181,16 @@ class SelfTabView : FrameLayout {
         mTabIndicatorMarginBottom =
             parameters.getDimension(R.styleable.SelfTabView_suTabIndicatorMarginBottom, 0f)
         mTabEnablePageSmoothScroll = parameters.getBoolean(R.styleable.SelfTabView_suTabEnablePageSmoothScroll,true)
+        mSuperTabUnselectedBg = parameters.getDrawable(R.styleable.SelfTabView_suTabUnselectedBg)
+        mSuperTabSelectedBg = parameters.getDrawable(R.styleable.SelfTabView_suTabSelectedBg)
         parameters.recycle()
     }
 
     override fun onDraw(canvas: Canvas?) {
+        if (mTabCount == 0){
+            return
+        }
+        mDefaultTabHeight = height
         //单个tab的宽度
         var singleTabWidth = (width / mTabCount)
         if (mTabShowModel == 1 && mTabScrollWidth != 0f) {
@@ -194,7 +216,10 @@ class SelfTabView : FrameLayout {
         val scale = mViewpagerWidth / singleTabWidth
         //计算指示器需要滑动的距离
         val offset = mOffset / scale
-        localIndicatorPosition(indicatorStartX, indicatorNextStartX, indicatorNextEndX, offset)
+        //如果指示器宽度为0，没必要执行移动指示器的步骤
+        if (mIndicatorWidth != 0f){
+            localIndicatorPosition(indicatorStartX, indicatorNextStartX, indicatorNextEndX, offset)
+        }
     }
 
     /**
@@ -245,8 +270,7 @@ class SelfTabView : FrameLayout {
     private fun setTabTextColor(position: Int) {
         if (position < findViewById<LinearLayout>(R.id.vLlTabBox).childCount) {
             val selected = findViewById<LinearLayout>(R.id.vLlTabBox).getChildAt(position)
-            val unselected =
-                findViewById<LinearLayout>(R.id.vLlTabBox).getChildAt(mOldSelectPosition)
+            val unselected = findViewById<LinearLayout>(R.id.vLlTabBox).getChildAt(mOldSelectPosition)
             mSuperTabCallback?.onSelected(selected)
             mSuperTabCallback?.onUnSelected(unselected)
             if (position != mOldSelectPosition) {
@@ -255,6 +279,14 @@ class SelfTabView : FrameLayout {
                     unselected.setTextColor(mTabTextColor)
                     setTabTextSize(selected, unselected)
                     setTabTypeFace(selected, unselected)
+                }
+
+                //设置选中及未选中背景
+                if (mSuperTabSelectedBg != null){
+                    selected.background = mSuperTabSelectedBg
+                }
+                if (mSuperTabUnselectedBg != null){
+                    unselected.background = mSuperTabUnselectedBg
                 }
             }
         }
@@ -373,13 +405,15 @@ class SelfTabView : FrameLayout {
      * 添加tab
      */
     fun addTab(tabText: MutableList<String>) {
+        Log.e("日志","执行添加次数，孩子个数：${findViewById<LinearLayout>(R.id.vLlTabBox).childCount}")
+        mTabTitleArray.addAll(tabText)
         //获取最长的文本长度，用于设置滚动模式下的tab长度
         var maxLength = 0
         if (mTabShowModel == 1) {
             for (item in 0 until mTabCount) {
-                if (item <= tabText.size - 1) {
-                    if (tabText[item].length > maxLength) {
-                        maxLength = tabText[item].length
+                if (item <= mTabTitleArray.size - 1) {
+                    if (mTabTitleArray[item].length > maxLength) {
+                        maxLength = mTabTitleArray[item].length
                     }
                 }
             }
@@ -392,23 +426,23 @@ class SelfTabView : FrameLayout {
                 val view = LayoutInflater.from(context)
                     .inflate(mTabCustomLayout, findViewById(R.id.vLlTabBox), false)
                 if (view != null) {
-                    if (item > tabText.size - 1) {
+                    if (item > mTabTitleArray.size - 1) {
                         addCustomView("", item, view)
                     } else {
-                        addCustomView(tabText[item], item, view)
+                        addCustomView(mTabTitleArray[item], item, view)
                     }
                 } else {
-                    if (item > tabText.size - 1) {
+                    if (item > mTabTitleArray.size - 1) {
                         addDefaultTextView("", item)
                     } else {
-                        addDefaultTextView(tabText[item], item)
+                        addDefaultTextView(mTabTitleArray[item], item)
                     }
                 }
             } else {
-                if (item > tabText.size - 1) {
+                if (item > mTabTitleArray.size - 1) {
                     addDefaultTextView("", item)
                 } else {
-                    addDefaultTextView(tabText[item], item)
+                    addDefaultTextView(mTabTitleArray[item], item)
                 }
             }
         }
@@ -418,6 +452,9 @@ class SelfTabView : FrameLayout {
      * 添加默认tab布局
      */
     private fun addDefaultTextView(title: String, item: Int) {
+        if (mDefaultTabHeight == 0){
+            return
+        }
         val view = TextView(context)
         //设置默认选中项
         if (item == mDefaultTabIndex) {
@@ -428,7 +465,11 @@ class SelfTabView : FrameLayout {
                 view.typeface = Typeface.DEFAULT_BOLD
             }
             mOldSelectPosition = item
+            if (mSuperTabSelectedBg != null){
+                view.background = mSuperTabSelectedBg
+            }
         } else {
+            view.background = mSuperTabUnselectedBg
             view.setTextColor(mTabTextColor)
             view.text = title
             view.setTextSize(TypedValue.COMPLEX_UNIT_PX, mTabTextSize)
@@ -446,6 +487,9 @@ class SelfTabView : FrameLayout {
         } else {
             viewLp.weight = 1f
         }
+        Log.e("日志","高度为:${mDefaultTabHeight}")
+        viewLp.height = mDefaultTabHeight
+        //Log.e("日志","高度：${mDefaultTabHeight}")
         view.layoutParams = viewLp
         view.setOnClickListener {
             val index = findViewById<LinearLayout>(R.id.vLlTabBox).indexOfChild(it)
@@ -547,6 +591,23 @@ class SelfTabView : FrameLayout {
     fun selectTab(position:Int){
         mViewpager?.setCurrentItem(position,mTabEnablePageSmoothScroll)
         mViewpager2?.setCurrentItem(position,mTabEnablePageSmoothScroll)
+    }
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+        if (mTabTitleArray.isNotEmpty()){
+            if (MeasureSpec.getSize(heightMeasureSpec) > 0){
+                if (MeasureSpec.getMode(heightMeasureSpec) == AT_MOST){
+                    mDefaultTabHeight = dipTopx(35f)
+                }else{
+                    mDefaultTabHeight = MeasureSpec.getSize(heightMeasureSpec)
+                }
+                //Log.e("日志","高度为：${mDefaultTabHeight},${MeasureSpec.getSize(heightMeasureSpec)}")
+            }
+            if (findViewById<LinearLayout>(R.id.vLlTabBox).childCount == 0){
+                addTab(mTabTitleArray)
+            }
+        }
     }
 
 }
