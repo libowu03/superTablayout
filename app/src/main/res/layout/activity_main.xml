@@ -6,13 +6,16 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".MainActivity"
+    android:gravity="center_horizontal"
     android:orientation="vertical">
     <com.example.selftab.SelfTabView
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         app:suTabIndicatorBg="@drawable/ic_shape_tab"
         app:suTabIndicatorHeight="3dp"
-        app:suTabIndicatorWidth="0dp"
+        app:suTabShowModel="auto"
+        app:subTabWidth="40dp"
+        app:suTabIndicatorWidth="100dp"
         android:id="@+id/vTab"/>
     <androidx.viewpager2.widget.ViewPager2
         android:layout_width="match_parent"

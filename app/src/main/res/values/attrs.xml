@@ -4,7 +4,9 @@
         <!--指示器高度-->
         <attr name="suTabIndicatorHeight" format="dimension"/>
         <!--指示宽度-->
-        <attr name="suTabIndicatorWidth" format="dimension"/>
+        <attr name="suTabIndicatorWidth" format="dimension">
+            <enum name="auto" value="-1"/>
+        </attr>
         <!--指示器背景-->
         <attr name="suTabIndicatorBg" format="reference"/>
         <!--选中tab的背景-->
@@ -27,12 +29,16 @@
         <attr name="suTabEnableSelectedTextBold" format="boolean"/>
         <!--点击tab时，page是带有动画的滚动形式还是越过动画，直接到达目标page-->
         <attr name="suTabEnablePageSmoothScroll" format="boolean"/>
+        <!--自定义宽度，没有设置该数值，则使用view本身逻辑的宽度设置。只适用于滚动模式下-->
+        <attr name="subTabWidth" format="dimension"/>
         <!--滚动模式-->
         <attr name="suTabShowModel" format="enum">
             <!--平均模式-->
             <enum name="average" value="0"/>
             <!--滚动模式-->
             <enum name="scroll" value="1"/>
+            <!--自动模式，不够长度直接转为滚动模式-->
+            <enum name="auto" value="2"/>
         </attr>
     </declare-styleable>
 </resources>

@@ -19,6 +19,7 @@ import android.widget.*
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.viewpager.widget.ViewPager
 import androidx.viewpager2.widget.ViewPager2
+import kotlin.math.abs
 
 /**
  * tab导航栏
@@ -33,8 +34,11 @@ class SelfTabView : FrameLayout {
     //绘制指示器的画板
     private val mIndicatorPaint = Paint()
 
-    //指示器宽度
+    //指示器宽度(-1表示自动)
     var mIndicatorWidth = 10f
+
+    //默认选中tab指示器的长度，自动宽度模式下有用，其他模式可以无视此值
+    var mIndicatorDefaultIndexWidth = 0f
 
     //指示器高度
     var mIndicatorHeight = 5f
@@ -75,6 +79,8 @@ class SelfTabView : FrameLayout {
     //tab的显示模式，包括滚动和平均分配两种
     private var mTabShowModel: Int = 0
 
+    private var mIsAutoWidthIndicator:Boolean = false
+
     //tab滚动模式下每个tab的最大宽度
     private var mTabScrollMaxWidth: Float = 0f
 
@@ -113,9 +119,19 @@ class SelfTabView : FrameLayout {
 
     private var mDefaultTabHeight:Int = 0
 
+    //tab的标题
     private var mTabTitleArray:MutableList<String> = mutableListOf()
 
+    //tab指示器长度自动情况下使用到的指示器长度
+    private var mTabIndicatorWidthList:MutableList<Int> = mutableListOf()
+
+    //调用者自行设置的tab宽度，优先读取该值
+    private var mTabWidth = -1f
+
     var mTabEnablePageSmoothScroll:Boolean = true
+
+    //view的宽度
+    private var mViewWidth = 0
 
 
     private var mCustomTabConfigCallback: (customView: View, title: String, position: Int) -> Unit =
@@ -158,7 +174,11 @@ class SelfTabView : FrameLayout {
 
         val parameters =
             context.theme.obtainStyledAttributes(attrs, R.styleable.SelfTabView, defStyleAttr, 0)
-        mIndicatorWidth = parameters.getDimension(R.styleable.SelfTabView_suTabIndicatorWidth, -1f)
+        mIndicatorWidth = parameters.getLayoutDimension(R.styleable.SelfTabView_suTabIndicatorWidth, -1).toFloat()
+        if (mIndicatorWidth == -1f){
+            mIsAutoWidthIndicator = true
+        }
+        //Log.e("日志","前面宽度为：${mIndicatorWidth}")
         mIndicatorHeight = parameters.getDimension(
             R.styleable.SelfTabView_suTabIndicatorHeight,
             dipTopx(3f).toFloat()
@@ -170,6 +190,7 @@ class SelfTabView : FrameLayout {
             parameters.getColor(R.styleable.SelfTabView_suTabTextColor, Color.parseColor("#cccccc"))
         mTabTextSize =
             parameters.getDimension(R.styleable.SelfTabView_suTabTextSize, dipTopx(13f).toFloat())
+        mTabWidth = parameters.getDimension(R.styleable.SelfTabView_subTabWidth,-1f)
         mTabSelectedTextSize = parameters.getDimension(
             R.styleable.SelfTabView_suTabSelectedTextSize,
             mTabTextSize + dipTopx(3f)
@@ -183,6 +204,9 @@ class SelfTabView : FrameLayout {
         mTabEnablePageSmoothScroll = parameters.getBoolean(R.styleable.SelfTabView_suTabEnablePageSmoothScroll,true)
         mSuperTabUnselectedBg = parameters.getDrawable(R.styleable.SelfTabView_suTabUnselectedBg)
         mSuperTabSelectedBg = parameters.getDrawable(R.styleable.SelfTabView_suTabSelectedBg)
+        if (mTabShowModel != 0 && mTabWidth != -1f && mIndicatorWidth > mTabWidth){
+            mIndicatorWidth = mTabWidth
+        }
         parameters.recycle()
     }
 
@@ -190,6 +214,11 @@ class SelfTabView : FrameLayout {
         if (mTabCount == 0){
             return
         }
+        if (mIndicatorWidth == -1f && mIndicatorDefaultIndexWidth != 0f){
+            mIndicatorWidth = mIndicatorDefaultIndexWidth
+        }
+        //Log.e("日志","宽度为：${mIndicatorWidth}")
+
         mDefaultTabHeight = height
         //单个tab的宽度
         var singleTabWidth = (width / mTabCount)
@@ -204,24 +233,28 @@ class SelfTabView : FrameLayout {
         if (mIndicatorWidth < 0) {
             mIndicatorWidth = singleTabWidth.toFloat()
         }
-        val indicatorStartX =
-            ((mDefaultTabIndex) * singleTabWidth + singleTabWidth / 2) - mIndicatorWidth / 2
+        var indicatorStartX = ((mDefaultTabIndex) * singleTabWidth + singleTabWidth / 2) - mIndicatorWidth / 2
         //下一个tab指示器结束位置
-        val indicatorNextEndX =
-            ((mDefaultTabIndex + 1) * singleTabWidth + singleTabWidth / 2) + mIndicatorWidth / 2
+        var indicatorNextEndX = ((mDefaultTabIndex + 1) * singleTabWidth + singleTabWidth / 2) + mIndicatorWidth / 2
         //下一个tab指示器开始位置
-        val indicatorNextStartX =
-            ((mDefaultTabIndex + 1) * singleTabWidth + singleTabWidth / 2) - mIndicatorWidth / 2
+        var indicatorNextStartX = ((mDefaultTabIndex + 1) * singleTabWidth + singleTabWidth / 2) - mIndicatorWidth / 2
+        //指示器自动长度模式下需要做适当调整
+        if (mIsAutoWidthIndicator){
+            indicatorStartX = ((mDefaultTabIndex) * singleTabWidth + singleTabWidth / 2f) - mTabIndicatorWidthList[mDefaultTabIndex] / 2f
+            indicatorNextEndX = ((mDefaultTabIndex + 1) * singleTabWidth + singleTabWidth / 2f) + mTabIndicatorWidthList.getObj(mDefaultTabIndex+1) / 2f
+            indicatorNextStartX = ((mDefaultTabIndex + 1) * singleTabWidth + singleTabWidth / 2f) - mTabIndicatorWidthList.getObj(mDefaultTabIndex+1) / 2f
+        }
         //计算viewpager2与tab的比例，用于滑动指示器
         val scale = mViewpagerWidth / singleTabWidth
         //计算指示器需要滑动的距离
         val offset = mOffset / scale
         //如果指示器宽度为0，没必要执行移动指示器的步骤
         if (mIndicatorWidth != 0f){
-            localIndicatorPosition(indicatorStartX, indicatorNextStartX, indicatorNextEndX, offset)
+            localIndicatorPosition(indicatorStartX, indicatorNextStartX, indicatorNextEndX, offset,singleTabWidth.toFloat())
         }
     }
 
+    var tmp = 1f
     /**
      * 滑动指示器
      * @param indicatorStartX 指示器起始绘制位置
@@ -231,7 +264,8 @@ class SelfTabView : FrameLayout {
         indicatorStartX: Float,
         indicatorNextStartX: Float,
         indicatorNextEndX: Float,
-        offset: Int
+        offset: Int,
+        singleTabWidth:Float
     ) {
         if (mLlp == null) {
             mLlp = ConstraintLayout.LayoutParams(mIndicatorWidth.toInt(), mIndicatorHeight.toInt())
@@ -240,14 +274,23 @@ class SelfTabView : FrameLayout {
                 findViewById<ImageView>(R.id.vImgIndicator).setImageDrawable(mIndicatorBg)
             }
         }
-        if (indicatorStartX + offset > (indicatorNextEndX - mIndicatorWidth)) {
-            setTabTextColor(mDefaultTabIndex + 1)
+        if (mIsAutoWidthIndicator){
+            var pro = ((mTabIndicatorWidthList.getObj(mDefaultTabIndex+1)-mTabIndicatorWidthList[mDefaultTabIndex].toFloat())*(offset/singleTabWidth))
+            //Log.e("日志","pro为:${offset/singleTabWidth}")
+            var widthTmp = mTabIndicatorWidthList[mDefaultTabIndex]+pro.toInt()
+            mLlp = ConstraintLayout.LayoutParams(widthTmp, mIndicatorHeight.toInt())
+            findViewById<ImageView>(R.id.vImgIndicator).layoutParams = mLlp
         }
-        findViewById<ImageView>(R.id.vImgIndicator).translationX =
-            if (indicatorStartX + offset > (indicatorNextEndX - mIndicatorWidth)) indicatorNextStartX else indicatorStartX + offset
-        findViewById<ImageView>(R.id.vImgIndicator).translationY =
-            height - mIndicatorHeight - mTabIndicatorMarginBottom
-        mSuperTabCallback?.onIndicatorMove(offset.toFloat())
+  /*      if (indicatorStartX + offset > (indicatorNextEndX - mTabIndicatorWidthList[mDefaultTabIndex])) {
+            setTabTextColor(mDefaultTabIndex + 1)
+        }*/
+        if (mTabIndicatorWidthList.size-1 >= mDefaultTabIndex){
+            findViewById<ImageView>(R.id.vImgIndicator).translationX =
+                if (indicatorStartX + offset >= (indicatorNextEndX - mTabIndicatorWidthList[mDefaultTabIndex])-dipTopx(10f)) indicatorNextStartX else indicatorStartX + offset
+            findViewById<ImageView>(R.id.vImgIndicator).translationY =
+                height - mIndicatorHeight - mTabIndicatorMarginBottom
+            mSuperTabCallback?.onIndicatorMove(offset.toFloat())
+        }
     }
 
     /**
@@ -405,21 +448,60 @@ class SelfTabView : FrameLayout {
      * 添加tab
      */
     fun addTab(tabText: MutableList<String>) {
-        Log.e("日志","执行添加次数，孩子个数：${findViewById<LinearLayout>(R.id.vLlTabBox).childCount}")
-        mTabTitleArray.addAll(tabText)
+        mTabIndicatorWidthList.clear()
+        if (mTabTitleArray.isEmpty()){
+            mTabTitleArray.addAll(tabText)
+        }
         //获取最长的文本长度，用于设置滚动模式下的tab长度
         var maxLength = 0
-        if (mTabShowModel == 1) {
-            for (item in 0 until mTabCount) {
-                if (item <= mTabTitleArray.size - 1) {
-                    if (mTabTitleArray[item].length > maxLength) {
-                        maxLength = mTabTitleArray[item].length
+
+        for (item in 0 until mTabCount) {
+            if (item <= mTabTitleArray.size - 1) {
+                if (mTabTitleArray[item].length > maxLength) {
+                    maxLength = mTabTitleArray[item].length
+                }
+                if (mIsAutoWidthIndicator){
+                    //获取每个tab文案的长度，用于在指示器长度自动模式下的宽度
+                    if ((mTabTitleArray[item].length*mTabTextSize) > mTabScrollMaxWidth) {
+                        mTabIndicatorWidthList.add( mTabScrollMaxWidth.toInt() )
+                        if(item == mDefaultTabIndex){
+                            mIndicatorDefaultIndexWidth = mTabScrollMaxWidth
+                            //Log.e("日志","最大值")
+                        }
+                    }else{
+                        mTabIndicatorWidthList.add( (mTabTitleArray[item].length * mTabTextSize).toInt() )
+                        if(item == mDefaultTabIndex){
+                            mIndicatorDefaultIndexWidth = (mTabTitleArray[item].length * mTabTextSize)
+                            //Log.e("日志","执行其他")
+                        }
                     }
+                }else{
+                    mTabIndicatorWidthList.add( mIndicatorWidth.toInt() )
                 }
             }
-            //设置滚动模式下的tab长度，这里需要添加一个默认的长度给textView，否则直接用字符最大长度会非常拥挤
-            mTabScrollWidth = maxLength * mTabTextSize + mTabDefaultScrollPadding
         }
+        //设置滚动模式下的tab长度，这里需要添加一个默认的长度给textView，否则直接用字符最大长度会非常拥挤
+        if(mTabShowModel == 1){
+            mTabScrollWidth = maxLength * mTabTextSize + mTabDefaultScrollPadding
+            if (mTabWidth != -1f){
+                mTabScrollWidth = mTabWidth
+            }
+            mTabIndicatorWidthList.clear()
+        }else if (mTabShowModel == 2){
+            //自定模式下长度设置
+            if (mViewWidth != 0){
+                if (maxLength * mTabTextSize + mTabDefaultScrollPadding > mViewWidth){
+                    mTabScrollWidth = maxLength * mTabTextSize + mTabDefaultScrollPadding
+                }else{
+                    mTabScrollWidth = (mViewWidth/tabText.size).toFloat()
+                }
+                if (mTabWidth != -1f){
+                    mTabScrollWidth = mTabWidth
+                }
+                mTabIndicatorWidthList.clear()
+            }
+        }
+
 
         for (item in 0 until mTabCount) {
             if (mTabCustomLayout != -1) {
@@ -484,10 +566,14 @@ class SelfTabView : FrameLayout {
                 mTabScrollWidth = mTabScrollMaxWidth
             }
             viewLp.width = mTabScrollWidth.toInt()
+            mTabIndicatorWidthList.add(mTabScrollWidth.toInt())
+        } else if (mTabShowModel == 2){
+            viewLp.width = mTabScrollWidth.toInt()
+            mTabIndicatorWidthList.add(mTabScrollWidth.toInt())
         } else {
             viewLp.weight = 1f
         }
-        Log.e("日志","高度为:${mDefaultTabHeight}")
+        //Log.e("日志","高度为:${mDefaultTabHeight}")
         viewLp.height = mDefaultTabHeight
         //Log.e("日志","高度：${mDefaultTabHeight}")
         view.layoutParams = viewLp
@@ -544,6 +630,7 @@ class SelfTabView : FrameLayout {
             } else {
                 val llp = view.layoutParams
                 llp.width = mTabScrollWidth.toInt()
+                mTabIndicatorWidthList.add(mTabScrollWidth.toInt())
                 view.layoutParams = llp
             }
             //Log.e("日志","宽度：${view.layoutParams.width}")
@@ -595,6 +682,7 @@ class SelfTabView : FrameLayout {
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+        mViewWidth = MeasureSpec.getSize(widthMeasureSpec)
         if (mTabTitleArray.isNotEmpty()){
             if (MeasureSpec.getSize(heightMeasureSpec) > 0){
                 if (MeasureSpec.getMode(heightMeasureSpec) == AT_MOST){
